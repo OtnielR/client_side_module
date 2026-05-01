@@ -1,0 +1,432 @@
+const map = document.getElementById("map")
+const mapContainer = document.getElementById("map-container")
+const pinFormContainer = document.getElementById("pin-form-container")
+const pinForm = document.getElementById("pin-form")
+const locationInput = document.getElementById("location-name")
+const connectFormContainer = document.getElementById('connect-form-container')
+const connectForm = document.getElementById('connect-form')
+const distanceInput = document.getElementById("distance-name")
+const modeInput = document.getElementById("mode-name")
+const findRouteForm = document.getElementById("find-route-form")
+const findRouteFromInput = document.getElementById("find-route-from-input")
+const findRouteToInput = document.getElementById("find-route-to-input")
+const findRouteContent = document.getElementById("find-route-content")
+const overlayLayer = document.getElementById("overlay-layer")
+const svgLayer = document.getElementById("svg-layer")
+const transportasionMode = {
+    train: {
+        lineColor: "#33E339",
+        speedKm: 120,
+        costPerKm: 500,
+        gap: 0
+    },
+    bus: {
+        lineColor: "#A83BE8",
+        speedKm: 80,
+        costPerKm: 100,
+        gap: 1
+    },
+    airplane: {
+        lineColor: "#000000",
+        speedKm: 800,
+        costPerKm: 1000,
+        gap: 2
+    },
+}
+
+let savedPins = JSON.parse(localStorage.getItem("pins")) || []
+let savedConnections = JSON.parse(localStorage.getItem("connections")) || []
+let currentCords = { x: 0, y: 0}
+let currentCordsPercent= { x: 0, y: 0}
+let connectionSource = null
+let connectionEnd = null
+let zoom = 1, posX = 0, posY = 0
+let isDragging = false
+let routeContent = []
+
+function sortRouteContentByFastest() {
+    routeContent.sort((a, b) =>  a.totalDuration - b.totalDuration)
+
+    renderRoute()
+}
+
+function sortRouteContentByCheapest() {
+    routeContent.sort((a, b) =>  a.totalCost - b.totalCost)
+
+    renderRoute()
+}
+
+function closeForm (e) {
+    const pinActionElements = document.querySelectorAll(".pin-action")
+    
+    pinFormContainer.style.visibility = `hidden`
+    connectFormContainer.style.visibility = `hidden`
+
+    pinActionElements.forEach(e => {
+        e.style.borderColor = "#000000"
+    })
+
+    connectionSource = null
+    connectionEnd = null
+}
+
+function deletePin(name) {
+    const pinElement = document.getElementById(name)
+    pinElement.style.display = "none"
+
+    savedPins = savedPins.filter(pin => pin.name !== name)
+    localStorage.setItem("pins", JSON.stringify(savedPins))
+
+    renderAllPins()
+}
+
+function connectPin(name) {
+    const pinActionElement = document.getElementById(`action-${name}`)
+    pinActionElement.style.borderColor = "#00AAFF"
+
+    if (connectionSource) {
+        if (connectionSource.name == name ) {
+            connectionSource = null
+            pinActionElement.style.borderColor = "#000000"
+            return
+        }
+
+        connectionEnd = savedPins.find(p => p.name == name)
+
+
+        let formCoordX = (connectionSource.x + connectionEnd.x) / 2
+        let formCoordY = Math.min(connectionSource.y, connectionEnd.y) 
+
+        if (formCoordY < 20) {
+            formCoordY += 7.5
+        } else {
+            formCoordY -= 30
+        }
+
+        console.log(formCoordX, formCoordY)
+
+        connectFormContainer.style.left = `${formCoordX}%`
+        connectFormContainer.style.top = `${formCoordY}%`
+        connectFormContainer.style.visibility = "visible"
+        connectFormContainer.style.transform = `translateX(-50%)`
+
+    } else {
+        pin = savedPins.find(p => p.name == name)
+
+        connectionSource = pin
+    }
+}
+
+function renderAllPins(){
+    savedPins.forEach(renderPin)
+}
+
+map.addEventListener("dblclick", (e) => {
+    const rect = map.getBoundingClientRect()
+    const pinFormContainerRect = pinFormContainer.getBoundingClientRect()
+
+    currentCords.x = e.clientX - rect.left
+    currentCords.y = e.clientY - rect.top
+    currentCordsPercent.x = currentCords.x / rect.width * 100
+    currentCordsPercent.y = currentCords.y / rect.height * 100
+
+    let pinFormContainerCordsX = currentCords.x - (pinFormContainerRect.width / 2)
+    let pinFormContainerCordsY = currentCords.y - (pinFormContainerRect.height)
+
+    if (currentCords.y < 200) {
+        pinFormContainerCordsY += pinFormContainerRect.height * 1.75
+    } else {
+        pinFormContainerCordsY -= 30
+    }
+    
+    pinFormContainer.style.left = `${pinFormContainerCordsX}px`
+    pinFormContainer.style.top = `${pinFormContainerCordsY}px`
+    pinFormContainer.style.visibility = `visible`
+
+    locationInput.value = ""
+    locationInput.focus()
+})
+
+pinForm.addEventListener("submit", (e) => {
+    e.preventDefault()
+
+    const name = locationInput.value
+
+    if (savedPins.find(pin => pin.name == name)) {
+        alert("Location Already Exist")
+        return
+    }
+
+    console.log(name)
+
+    const newPin = {
+        id: Date.now(),
+        x: currentCordsPercent.x,
+        y: currentCordsPercent.y,
+        name: name
+    }
+
+    savedPins.push(newPin)
+    localStorage.setItem("pins", JSON.stringify(savedPins))
+
+    renderPin(newPin)
+    closeForm()
+})
+
+connectForm.addEventListener("submit", (e) => {
+    e.preventDefault()
+
+    const distance = distanceInput.value
+    const mode = modeInput.value
+
+    const isConnectionExist = savedConnections.find(connection => (connection.mode == mode 
+                                            && (connection.from.name == connectionSource.name || connection.to.name == connectionSource.name)
+                                            && (connection.to.name == connectionEnd.name || connection.from.name == connectionEnd.name)))
+
+    if (isConnectionExist) {
+        alert("Connection mode already exist")
+        return
+    }
+
+    const connection = {
+        from: connectionSource,
+        to: connectionEnd,
+        distance: distance,
+        mode: mode
+    }
+
+    const reversedConnection = {
+        from: connectionEnd,
+        to: connectionSource,
+        distance: distance,
+        mode: mode
+    }
+
+    savedConnections.push(connection)
+    savedConnections.push(reversedConnection)
+
+    localStorage.setItem('connections', JSON.stringify(savedConnections))
+
+    renderAllConnection()
+    closeForm()
+})
+
+findRouteForm.addEventListener("submit", (e) => {
+    e.preventDefault()
+
+    let allRoutes = []
+
+    const fromValue = findRouteFromInput.value
+    const toValue = findRouteToInput.value
+
+    const startPin = savedPins.find(pin => pin.name == fromValue)
+    const endPin = savedPins.find(pin => pin.name == toValue)
+
+    if (!startPin || !endPin) {
+        alert("Location not found")
+        return
+    }
+
+    const queue = [{
+        currentLocation: fromValue,
+        path: [],
+        totalCost: 0,
+        totalDuration: 0,
+        visited: [fromValue]
+    }]
+
+    while (queue.length > 0) {
+        let {currentLocation, path, totalCost, totalDuration, visited} = queue.shift()
+
+        if (currentLocation == toValue) {
+            allRoutes.push({path: path, totalCost: totalCost, totalDuration: totalDuration})
+            continue
+        }
+
+        const neighbors = savedConnections.filter(conn => conn.from.name == currentLocation)
+
+        console.log(neighbors)
+        console.log(queue)
+
+        neighbors.forEach(conn => {
+            if (!visited.includes(conn.to.name)) {
+                queue.push({
+                    currentLocation: conn.to.name,
+                    path: [...path, conn],
+                    totalCost: totalCost + (transportasionMode[conn.mode].costPerKm * Number(conn.distance)),
+                    totalDuration: totalDuration + (Number(conn.distance) / transportasionMode[conn.mode].speedKm),
+                    visited: [...visited, conn.to.name]
+                })
+            }
+        })
+    }
+
+    allRoutes.sort((a, b) => a.totalDuration - b.totalDuration)
+    allRoutes = allRoutes.splice(0, 10)
+    
+    routeContent = allRoutes
+
+    renderRoute()
+
+})
+
+
+function renderPin(pin) {
+    const pinElement = document.createElement('div'); 
+    pinElement.className = "pin-marker";
+    pinElement.style.position = "absolute";
+    pinElement.style.top = `${pin.y}%`;
+    pinElement.style.left = `${pin.x}%`;
+    pinElement.style.transform = `translate(-50%, -50%)`
+
+    pinElement.innerHTML = `
+        <div class="pin-icon" id="${pin.name}">
+            <div class="pin-action" id="action-${pin.name}">
+                <p>${pin.name}</p>
+                <button onclick="connectPin('${pin.name}')">
+                    <img src="./assets/connection.svg" alt="pin-icon">
+                </button>
+                <button onclick="deletePin('${pin.name}')">
+                    <img src="./assets/trash.svg" alt="pin-icon">
+                </button>
+            </div>
+            <img src="./assets/pin.svg" alt="pin-icon">
+        </div>
+    `
+
+    overlayLayer.appendChild(pinElement)
+}
+
+function renderAllConnection() {
+    svgLayer.innerHTML = ""
+
+    savedConnections.forEach(conn => {
+        const p1 = conn.from
+        const p2 = conn.to
+
+        if (p1 && p2) {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", 'line')
+
+            line.setAttribute("x1", `${p1.x }%`)
+            line.setAttribute("y1", `${p1.y + transportasionMode[conn.mode].gap}%`)
+            line.setAttribute("x2", `${p2.x }%`)
+            line.setAttribute("y2", `${p2.y + transportasionMode[conn.mode].gap}%`)
+            line.setAttribute("stroke", transportasionMode[conn.mode].lineColor)
+            line.setAttribute("stroke-width", "2")
+            svgLayer.appendChild(line)
+
+            const midX = ((p1.x + p2.x) / 2) - transportasionMode[conn.mode].gap * 2;
+            const midY = (p1.y + p2.y) / 2 - 3;
+
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
+            text.setAttribute("x", `${midX}%`)
+            text.setAttribute("y", `${midY}%`)
+            text.setAttribute("fill", transportasionMode[conn.mode].lineColor)
+            text.style.fontSize = "14px"
+            text.textContent = `${conn.distance}`
+            svgLayer.appendChild(text)
+        }
+    })
+
+}
+
+window.addEventListener("wheel", (e) => {
+    if (e.ctrlKey) {
+        e.preventDefault()
+
+        console.log(e.deltaY)
+
+        let delta = e.deltaY > 0 ? .9 : 1.1
+        zoom *= delta
+
+        if (zoom < 1) {
+            zoom = 1
+        }
+
+        syncTransform()
+    }
+}, {passive: false})
+
+window.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=')) {
+        e.preventDefault(); 
+        
+        if (e.key === '-' ) zoom *= 0.9;
+        else zoom *= 1.1;
+
+        if (zoom < 1) {
+            zoom = 1
+        }
+        
+        syncTransform();
+    }
+});
+
+function syncTransform() {
+    mapContainer.style.setProperty("--zoom", zoom)
+    mapContainer.style.setProperty("--x", `${posX}px`)
+    mapContainer.style.setProperty("--y", `${posY}px`)
+}
+
+window.addEventListener("mousedown", (e) => {isDragging = true})
+window.addEventListener("mouseup", (e) => { isDragging = false})
+window.addEventListener("mousemove", (e) => {
+    console.log("Mouse Move", isDragging)
+
+    if (!isDragging) return
+
+    console.log("Mouse Dragging")
+
+    posX += e.movementX
+    posY += e.movementY
+
+    syncTransform()
+})
+
+function renderRoute() {
+    findRouteContent.innerHTML = ""
+    routeContent.forEach((route) => {
+        console.log(route)
+    const routeElement = document.createElement("div")
+    routeElement.classList.add("route-content")
+    
+
+    const titleContainerElement = document.createElement("div")
+    titleContainerElement.classList.add("title-container")
+
+    const titleElement = document.createElement("h3")
+    titleElement.innerHTML = `${findRouteFromInput.value} - ${findRouteToInput.value}`
+
+    const pathElement = document.createElement("div")
+    pathElement.classList.add("path-container")
+
+    route.path.forEach((path, i) => {
+        const textElement = document.createElement("p")
+        textElement.innerHTML = `${i+1}. ${path.from.name} - ${path.to.name} (${path.mode})`
+
+        pathElement.appendChild(textElement)
+    })
+
+    const durationElement = document.createElement("p")
+    durationElement.innerHTML = `${Math.round(route.totalDuration)} h`
+
+    const costElement = document.createElement("h3")
+    costElement.innerHTML = `Rp. ${route.totalCost}`
+
+    titleContainerElement.appendChild(titleElement)
+    titleContainerElement.appendChild(durationElement)
+
+    routeElement.appendChild(titleContainerElement)
+    routeElement.appendChild(pathElement)
+    routeElement.appendChild(costElement)
+
+    findRouteContent.appendChild(routeElement)
+
+
+    })
+
+}
+
+
+renderAllPins()
+renderAllConnection()

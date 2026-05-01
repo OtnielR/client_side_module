@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+            <aside class="sidebar">
+                <form id="find-route-form" class="sidebar-inner">
+                    <div>
+                        <h2>Find Route</h2>
+                    </div>
+                    <div>
+                        <input placeholder="From" class="find-route-input" type="text" name="from-route-input" id="find-route-from-input">
+                    </div>
+                    <div>
+                        <input placeholder="To" class="find-route-input" type="text" name="from-route-input" id="find-route-to-input">
+                    </div>
+                    <div>
+                        <button class="find-route-button" type="submit">Search</button>
+                    </div>
+                    <div class="find-route">
+                        <div class="find-route-filter">
+                            <p>Sort By</p>
+                            <div>
+                                <a onclick="sortRouteContentByFastest()">Fastest</a>
+                                <a onclick="sortRouteContentByCheapest()">Cheapest</a>
+                            </div>
+                        </div>
+                        <div id="find-route-content" class="find-route-content">
+
+                        </div>
+                    </div>
+                </form>
+            </aside>
+    <div id="map-container" class="map-container">
+
+            <img id="map" class="map" src="./assets/indonesia-map.png" alt="indonesia-map">
+
+            <div class="pin-form-container" id="pin-form-container">
+                <form id="pin-form">
+                    <div class="form-title">
+                        <label for="location-name">Add Pinpoint</label>
+                        <span class="close-button" onclick="closeForm()">X</>
+                    </div>
+                    <div class="">
+                        <input type="text" id="location-name" name="location-name" placeholder="Location Name" required>
+                        <button type="submit">Submit</button>
+                    </div>
+                </form>
+            </div>
+            <div class="pin-form-container" id="connect-form-container">
+                <form id="connect-form">
+                    <div class="form-title">
+                        <label for="connect-name">Connect</label>
+                        <span class="close-button" onclick="closeForm()">X</>
+                    </div>
+                    <div>
+                        <input type="number" id="distance-name" name="distance-name" placeholder="Enter distance (km)" required>
+                        <select name="mode-name" id="mode-name" required>
+                            <option value="">Choose mode</option>
+                            <option value="train">Train</option>
+                            <option value="bus">Bus</option>
+                            <option value="airplane">Airplane</option>
+                        </select>
+                    </div>
+                    <div class="">
+                        <button type="submit">Submit</button>
+                    </div>
+                </form>
+
+            </div>
+
+            <svg id="svg-layer" class="overlay-layer">
+            </svg>
+
+
+            <div id="overlay-layer" class="overlay-layer">
+            </div>
+        </>
+
+
+
+    <script src="script.js"></script>
+</body>
+
+</html>
