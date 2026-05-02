@@ -168,7 +168,7 @@ body {
     border-radius: .75rem;
     border: 3px solid black;
     transform: translateX(-40%);
-    z-index: 150;
+    z-index: 250;
 }
 
 .pin-action button {

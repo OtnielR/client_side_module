@@ -77,7 +77,13 @@ function deletePin(name) {
     savedPins = savedPins.filter(pin => pin.name !== name)
     localStorage.setItem("pins", JSON.stringify(savedPins))
 
+
+    savedConnections = savedConnections.filter(conn => conn.from.name !== name)
+    savedConnections = savedConnections.filter(conn => conn.to.name !== name)
+    localStorage.setItem("connections", JSON.stringify(savedConnections))
+
     renderAllPins()
+    renderAllConnection()
 }
 
 function connectPin(name) {
@@ -118,6 +124,11 @@ function connectPin(name) {
 }
 
 function renderAllPins(){
+    if (savedPins.length == 0) {
+        overlayLayer.innerHTML = ""
+        return
+    }
+
     savedPins.forEach(renderPin)
 }
 
