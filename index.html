@@ -12,8 +12,9 @@
 <body>
             <aside class="sidebar">
                 <form id="find-route-form" class="sidebar-inner">
-                    <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h2>Find Route</h2>
+                        <div id="download-image" class="download-image" onclick="downloadResult()" style="cursor: pointer;">Download Image</div>
                     </div>
                     <div>
                         <input placeholder="From" class="find-route-input" type="text" name="from-route-input" id="find-route-from-input">
@@ -39,14 +40,13 @@
                 </form>
             </aside>
     <div id="map-container" class="map-container">
-
             <img id="map" class="map" src="./assets/indonesia-map.png" alt="indonesia-map">
 
             <div class="pin-form-container" id="pin-form-container">
                 <form id="pin-form">
                     <div class="form-title">
                         <label for="location-name">Add Pinpoint</label>
-                        <span class="close-button" onclick="closeForm()">X</>
+                        <span class="close-button" onclick="closeForm()">X</C>
                     </div>
                     <div class="">
                         <input type="text" id="location-name" name="location-name" placeholder="Location Name" required>
@@ -58,7 +58,7 @@
                 <form id="connect-form">
                     <div class="form-title">
                         <label for="connect-name">Connect</label>
-                        <span class="close-button" onclick="closeForm()">X</>
+                        <span class="close-button" onclick="closeForm()">X</ca>
                     </div>
                     <div>
                         <input type="number" id="distance-name" name="distance-name" placeholder="Enter distance (km)" required>
@@ -82,7 +82,9 @@
 
             <div id="overlay-layer" class="overlay-layer">
             </div>
-        </>
+
+            <canvas id="canvas" style="display: none;"></canvas>
+        </div>
 
 
 

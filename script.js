@@ -1,3 +1,5 @@
+const canvas = document.getElementById("canvas")
+const downloadCanvas = document.getElementById("download-image")
 const map = document.getElementById("map")
 const mapContainer = document.getElementById("map-container")
 const pinFormContainer = document.getElementById("pin-form-container")
@@ -310,7 +312,7 @@ function renderAllConnection() {
 
         if (p1 && p2) {
             const line = document.createElementNS("http://www.w3.org/2000/svg", 'line')
-
+            line.setAttribute("xmlns", `http://www.w3.org/2000/svg`)
             line.setAttribute("x1", `${p1.x }%`)
             line.setAttribute("y1", `${p1.y + transportasionMode[conn.mode].gap}%`)
             line.setAttribute("x2", `${p2.x }%`)
@@ -323,6 +325,7 @@ function renderAllConnection() {
             const midY = (p1.y + p2.y) / 2 - 3;
 
             const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
+            text.setAttribute("xmlns", `http://www.w3.org/2000/svg`)
             text.setAttribute("x", `${midX}%`)
             text.setAttribute("y", `${midY}%`)
             text.setAttribute("fill", transportasionMode[conn.mode].lineColor)
@@ -431,6 +434,64 @@ function renderRoute() {
 
 }
 
+function downloadResult() {
+    const ctx = canvas.getContext("2d");
+    const mapImg = document.getElementById("map");
+
+    const naturalW = mapImg.naturalWidth;
+    const naturalH = mapImg.naturalHeight;
+    canvas.width = naturalW;
+    canvas.height = naturalH;
+
+    ctx.drawImage(mapImg, 0, 0, naturalW, naturalH);
+
+    const lines = document.querySelectorAll("#svg-layer line");
+    lines.forEach(line => {
+        const x1 = parseFloat(line.getAttribute("x1")) / 100;
+        const y1 = parseFloat(line.getAttribute("y1")) / 100;
+        const x2 = parseFloat(line.getAttribute("x2")) / 100;
+        const y2 = parseFloat(line.getAttribute("y2")) / 100;
+        const color = line.getAttribute("stroke") || "black";
+
+        ctx.beginPath();
+        ctx.moveTo(x1 * naturalW, y1 * naturalH);
+        ctx.lineTo(x2 * naturalW, y2 * naturalH);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+    });
+
+    savedPins.forEach(pin => {
+        const canvasX = pin.x / 100 * naturalW;
+        const canvasY = pin.y / 100 * naturalH;
+
+
+        console.log(canvasX, canvasY)
+
+        ctx.beginPath();
+        ctx.arc(canvasX, canvasY, 10, 0, Math.PI * 2); 
+        ctx.fillStyle = "red";
+        ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const label = pin.name || "";
+        if (label) {
+            ctx.fillStyle = "black";
+            ctx.font = "bold 20px Arial";
+            ctx.fillText(label, canvasX + 15, canvasY + 5);
+        }
+    });
+
+    const link = document.createElement("a");
+    link.download = "result.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+}
+
+
 
 renderAllPins()
 renderAllConnection()
+
