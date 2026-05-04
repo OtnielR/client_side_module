@@ -44,6 +44,8 @@ let connectionSource = null
 let connectionEnd = null
 let zoom = 1, posX = 0, posY = 0
 let isDragging = false
+let isDraggingPin = false
+let draggedPin = null
 let routeContent = []
 
 function sortRouteContentByFastest() {
@@ -85,6 +87,7 @@ function deletePin(name) {
 }
 
 function connectPin(name) {
+    console.log("pin-conn")
     const pinActionElement = document.getElementById(`action-${name}`)
     pinActionElement.style.borderColor = "#00AAFF"
 
@@ -98,13 +101,15 @@ function connectPin(name) {
         connectionEnd = savedPins.find(p => p.name == name)
 
 
-        let formCoordX = (connectionSource.x + connectionEnd.x) / 2
-        let formCoordY = Math.min(connectionSource.y, connectionEnd.y) 
+        let formCoordX = (Number(connectionSource.x) + Number(connectionEnd.x)) / 2
+        let formCoordY = Math.min(Number(connectionSource.y), Number(connectionEnd.y)) 
+
+        console.log(formCoordY)
 
         if (formCoordY < 20) {
             formCoordY += 7.5
         } else {
-            formCoordY -= 30
+            formCoordY += 3
         }
 
         console.log(formCoordX, formCoordY)
@@ -278,25 +283,82 @@ findRouteForm.addEventListener("submit", (e) => {
 
 
 function renderPin(pin) {
+    const rect = map.getBoundingClientRect()
     const pinElement = document.createElement('div'); 
     pinElement.className = "pin-marker";
+    pinElement.id = pin.name
     pinElement.style.position = "absolute";
     pinElement.style.top = `${pin.y}%`;
     pinElement.style.left = `${pin.x}%`;
     pinElement.style.transform = `translate(-50%, -50%)`
+
+    pinElement.addEventListener("mousedown", (e) => {
+        console.log(e.target.id)
+        console.log(e.target)
+        if (e.target.id == "button-delete") {
+            console.log("Button Click")
+            deletePin(pin.name)
+            return
+        } else if (e.target.id == "button-connect") {
+            connectPin(pin.name)
+            return
+        }
+
+        console.log("Pin Dragging")
+        isDraggingPin = true
+        draggedPin = pinElement
+    }) 
+
+    pinElement.addEventListener("mouseup", () => {
+        isDraggingPin = false
+        const xPercent = pinElement.style.left.split("%")[0]
+        const yPercent = pinElement.style.top.split("%")[0]
+
+        pinElement.style.top = `${yPercent}%`;
+        pinElement.style.left = `${xPercent}%`;
+
+        let pinsSaved = savedPins.map(pin => {
+            if (pin.name === pinElement.id) {
+                pin.x = xPercent
+                pin.y = yPercent
+            }
+
+            return pin
+        })
+        
+        localStorage.setItem("pins", JSON.stringify(pinsSaved))
+
+        let connectionsSaved = savedConnections.map(conn => {
+            if (conn.from.name == pinElement.id) {
+               conn.from.x = xPercent
+                conn.from.y = yPercent
+            }
+
+            if (conn.to.name == pinElement.id) {
+               conn.to.x = xPercent
+                conn.to.y = yPercent
+            }
+            return conn
+        })
+        
+        localStorage.setItem("connections", JSON.stringify(connectionsSaved))
+
+        renderAllPins()
+        renderAllConnection()
+    })
 
     pinElement.innerHTML = `
         <div class="pin-icon" id="${pin.name}">
             <div class="pin-action" id="action-${pin.name}">
                 <p>${pin.name}</p>
                 <button onclick="connectPin('${pin.name}')">
-                    <img src="./assets/connection.svg" alt="pin-icon">
+                    <img src="./assets/connection.svg" alt="pin-icon" id="button-connect">
                 </button>
-                <button onclick="deletePin('${pin.name}')">
-                    <img src="./assets/trash.svg" alt="pin-icon">
+                <button onclick="deletePin('${pin.name}')" >
+                    <img src="./assets/trash.svg" alt="pin-icon" id="button-delete">
                 </button>
             </div>
-            <img src="./assets/pin.svg" alt="pin-icon">
+            <img src="./assets/pin.svg" alt="pin-icon" >
         </div>
     `
 
@@ -312,7 +374,6 @@ function renderAllConnection() {
 
         if (p1 && p2) {
             const line = document.createElementNS("http://www.w3.org/2000/svg", 'line')
-            line.setAttribute("xmlns", `http://www.w3.org/2000/svg`)
             line.setAttribute("x1", `${p1.x }%`)
             line.setAttribute("y1", `${p1.y + transportasionMode[conn.mode].gap}%`)
             line.setAttribute("x2", `${p2.x }%`)
@@ -321,11 +382,10 @@ function renderAllConnection() {
             line.setAttribute("stroke-width", "2")
             svgLayer.appendChild(line)
 
-            const midX = ((p1.x + p2.x) / 2) - transportasionMode[conn.mode].gap * 2;
-            const midY = (p1.y + p2.y) / 2 - 3;
+            const midX = ((Number(p1.x) + Number(p2.x)) / 2) - transportasionMode[conn.mode].gap * 2;
+            const midY = (Number(p1.y) + Number(p2.y)) / 2 - 3;
 
             const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
-            text.setAttribute("xmlns", `http://www.w3.org/2000/svg`)
             text.setAttribute("x", `${midX}%`)
             text.setAttribute("y", `${midY}%`)
             text.setAttribute("fill", transportasionMode[conn.mode].lineColor)
@@ -378,9 +438,23 @@ function syncTransform() {
 window.addEventListener("mousedown", (e) => {isDragging = true})
 window.addEventListener("mouseup", (e) => { isDragging = false})
 window.addEventListener("mousemove", (e) => {
+    const rect = map.getBoundingClientRect()
     console.log("Mouse Move", isDragging)
 
     if (!isDragging) return
+
+    if (isDraggingPin) {
+        console.log(draggedPin)
+
+        const cursorPercentX = (e.clientX - rect.left) / rect.width * 100
+        const cursorPercentY = (e.clientY - rect.top) / rect.height * 100
+
+        draggedPin.style.left = `${cursorPercentX}%`
+        draggedPin.style.top = `${cursorPercentY}%`
+
+        console.log("Mouse move pin")
+        return
+    }
 
     console.log("Mouse Dragging")
 
